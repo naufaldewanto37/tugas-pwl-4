@@ -12,6 +12,13 @@ def init_db():
         year INT NOT NULL
     );
     """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS user (
+        username VARCHAR(255) NOT NULL,
+        password VARCHAR(255) NOT NULL
+    );
+    """)
     
     conn.commit()
     cursor.close()

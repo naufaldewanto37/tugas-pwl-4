@@ -4,9 +4,8 @@ from pyramid.view import view_config
 from pyramid.response import Response
 from passlib.hash import pbkdf2_sha256
 from pyramid.httpexceptions import HTTPNotFound
+from tugaspwl4 import db_connect
 
-# Simulated Database
-USERS = {}
 
 @view_config(route_name='register', renderer='json', request_method='POST')
 def register(request):
@@ -16,11 +15,25 @@ def register(request):
     if not username or not password:
         return Response('Missing username or password', status=400)
         
-    if username in USERS:
-        return Response('User already exists', status=400)
+    conn = db_connect()
+    cursor = conn.cursor()
     
-    hashed = pbkdf2_sha256.hash(password)
-    USERS[username] = hashed
+    # Cek apakah username sudah ada dalam database
+    cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+    existing_user = cursor.fetchone()
+    
+    if existing_user:
+        return Response('Username already exists', status=400)
+    
+    # Hash password
+    hashed_password = pbkdf2_sha256.hash(password)
+    
+    # Simpan pengguna baru ke dalam tabel
+    cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, hashed_password))
+    conn.commit()
+    
+    cursor.close()
+    conn.close()
     
     return {'status': 'User registered'}
 
@@ -32,36 +45,34 @@ def login(request):
     if not username or not password:
         return Response('Missing username or password', status=400)
         
-    hashed = USERS.get(username)
+    conn = db_connect()
+    cursor = conn.cursor()
     
-    if not hashed or not pbkdf2_sha256.verify(password, hashed):
+    # Ambil pengguna dari database berdasarkan username
+    cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+    user = cursor.fetchone()
+    
+    if not user:
+        return Response('User not found', status=400)
+    
+    # Verifikasi password
+    if not pbkdf2_sha256.verify(password, user[2]):
         return Response('Wrong credentials', status=400)
-
+    
     # Create token
     expiration = datetime.utcnow() + timedelta(hours=1)
     payload = {"username": username, "exp": expiration}
     token = jwt.encode(payload, "qwert123", algorithm="HS256")
+
+    cursor.close()
+    conn.close()
     
-    return {'token': token}
+    return {'token': 'your_jwt_token'}
 
 @view_config(route_name='hello', renderer='string')
 def hello_world(request):
     return "Hello, World!"
 
-MOVIES = [
-    {'id': 1, 'title': 'Inception', 'year': 2010},
-    {'id': 2, 'title': 'The Matrix', 'year': 1999},
-    {'id': 3, 'title': 'Avengers: Endgame', 'year': 2019},
-    {'id': 4, 'title': 'The Godfather', 'year': 1972},
-    {'id': 5, 'title': 'The Dark Knight', 'year': 2008},
-    {'id': 6, 'title': 'Forrest Gump', 'year': 1994},
-    {'id': 7, 'title': 'Fight Club', 'year': 1999},
-    {'id': 8, 'title': 'Pulp Fiction', 'year': 1994},
-    {'id': 9, 'title': 'Shawshank Redemption', 'year': 1994},
-    {'id': 10, 'title': 'Interstellar', 'year': 2014}
-]
-
-from tugaspwl4 import db_connect
 @view_config(route_name='movies', renderer='json', request_method='POST')
 def create_movie(request):
     title = request.json_body.get('title')
