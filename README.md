@@ -13,7 +13,7 @@ Ini adalah proyek sederhana yang menggunakan Pyramid untuk mengelola sebuah data
 ## Instalasi
 
 1. Clone repositori ini:
-git clone https://github.com/username/pyramid-movie-database.git
+git clone https://github.com/naufaldewanto37/tugas-pwl-4.git
 
 2. Install dependensi:
 pip install -r requirements.txt
